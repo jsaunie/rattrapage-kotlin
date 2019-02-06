@@ -5,6 +5,7 @@ import java.io.FileReader
 import java.io.IOException
 import java.text.NumberFormat
 import java.util.*
+import kotlin.collections.ArrayList
 
 private val DATA_YEAR = 0
 private val DATA_DEVICE = 1
@@ -17,11 +18,11 @@ private val DATA_MONTH = 9
 
 fun main(args: Array<String>?) {
     var fileReader: BufferedReader? = null
-    var yearMap = mutableMapOf<Int, MutableMap<String, Number>>()
-    var deviceMap = mutableMapOf<String, Number>()
+    val yearMap = mutableMapOf<Int, MutableMap<String, Number>>()
+    val deviceMap = mutableMapOf<String, Number>()
 
     try {
-        val datas = ArrayList<Data>()
+        val orders = ArrayList<Order>()
         var line: String?
 
         fileReader = BufferedReader(FileReader("data.csv"))
@@ -34,21 +35,24 @@ fun main(args: Array<String>?) {
         while (line != null) {
             val tokens = line.split(";")
 
-            // Set data
-            if (tokens.isNotEmpty()) setData(datas, tokens)
+            // Set order
+            if (tokens.isNotEmpty()) setOrder(orders, tokens)
 
             line = fileReader.readLine()
         }
 
         // Print the new data list
-        for (data in datas) {
-            setYearMap(yearMap, data.year, data.month, data.turnover)
-            setDeviceMap(deviceMap, data.device, data.turnover)
-//            println(data)
+        for (order in orders) {
+            setYearMap(yearMap, order.year, order.month, order.turnover)
+            setDeviceMap(deviceMap, order.device, order.turnover)
         }
 
         printYearMap(yearMap)
         printDeviceMap(deviceMap)
+        printAverageCart(orders)
+        printCPC(orders)
+        printClickRate(orders)
+        printROI(orders)
 
     } catch (e: Exception) {
         println("Reading CSV Error!")
@@ -63,13 +67,13 @@ fun main(args: Array<String>?) {
     }
 }
 
-fun setData(datas: ArrayList<Data>, tokens: List<String>) {
-    datas.add(
-        Data(
+fun setOrder(orders: ArrayList<Order>, tokens: List<String>) {
+    orders.add(
+        Order(
             Integer.parseInt(tokens[DATA_YEAR]),
             tokens[DATA_DEVICE],
             NumberFormat.getNumberInstance(Locale.FRANCE).parse(tokens[DATA_ORDER]),
-            tokens[DATA_IMPRESSIONS],
+            Integer.parseInt(tokens[DATA_IMPRESSIONS]),
             Integer.parseInt(tokens[DATA_CLICS]),
             NumberFormat.getNumberInstance(Locale.FRANCE).parse(tokens[DATA_COST]),
             NumberFormat.getNumberInstance(Locale.FRANCE).parse(tokens[DATA_TURNOVER]),
@@ -90,8 +94,8 @@ fun setYearMap(
     if (map.contains(year)) yearMap = map[year]!!
     if (yearMap.contains(month)) turnover = yearMap[month]!!
 
-    yearMap.put(month, turnover.toInt() + value.toInt())
-    map.put(year, yearMap)
+    yearMap[month] = turnover.toFloat() + value.toFloat()
+    map[year] = yearMap
 }
 
 fun setDeviceMap(map: MutableMap<String, Number>, device: String, value: Number) {
@@ -99,19 +103,50 @@ fun setDeviceMap(map: MutableMap<String, Number>, device: String, value: Number)
 
     if (map.contains(device)) turnover = map[device]!!
 
-    map.put(device, turnover.toInt() + value.toInt())
+    map.put(device, turnover.toFloat() + value.toFloat())
 }
 
 fun printYearMap(yearMap: MutableMap<Int, MutableMap<String, Number>>) {
+    println("\nLe chiffre d’affaires par mois par année :")
     for ((year, monthMap) in yearMap) {
         for ((month, turnover) in monthMap) {
-            println("Le chiffre d’affaires de $month de l'année $year est de $turnover€.")
+            println("[$year | $month]   =>  " + formatFloat("%.2f", turnover) + "€")
         }
     }
 }
 
 fun printDeviceMap(deviceMap: MutableMap<String, Number>) {
+    println("\nLe chiffre d’affaires par appareil :")
     for ((device, turnover) in deviceMap) {
-        println("Les appareils $device ont réalisé un chiffre d'affaire de $turnover€.")
+        println("$device   =>  " + formatFloat("%.2f", turnover) + "€")
     }
+}
+
+fun printAverageCart(orders: ArrayList<Order>) {
+    val totalTurnover = orders.map { it.orders.toFloat() }.sum()
+    println("\nLe panier moyen est de " + formatFloat("%.2f", totalTurnover / orders.size) + "€")
+}
+
+fun printCPC(orders: ArrayList<Order>) {
+    val totalClicks = orders.map { it.clicks.toFloat() }.sum()
+    val totalCosts = orders.map { it.cost.toFloat() }.sum()
+    println("\nLe coût par clic est de " + formatFloat("%.2f", totalCosts / totalClicks) + "€")
+}
+
+fun printClickRate(orders: ArrayList<Order>) {
+    val totalClicks = orders.map { it.clicks }.sum()
+    val totalImpressions = orders.map { it.impressions }.sum()
+    val rate = formatFloat("%.2f", (totalClicks.toFloat() / totalImpressions.toFloat()) * 100)
+    println("\nLe taux de clic est de $rate%")
+}
+
+fun printROI(orders: ArrayList<Order>) {
+    val totalTurnover = orders.map { it.turnover.toFloat() }.sum()
+    val totalCosts = orders.map { it.cost.toFloat() }.sum()
+    val roi = formatFloat("%.2f", totalTurnover / totalCosts)
+    println("\nLe ROI est de $roi%")
+}
+
+fun formatFloat(format: String, value: Number): String {
+    return format.format(value)
 }
