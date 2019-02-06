@@ -20,6 +20,7 @@ fun main(args: Array<String>?) {
     var fileReader: BufferedReader? = null
     val yearMap = mutableMapOf<Int, MutableMap<String, Number>>()
     val deviceMap = mutableMapOf<String, Number>()
+    val deviceMonthMap = mutableMapOf<String, MutableMap<String, Number>>()
 
     try {
         val orders = ArrayList<Order>()
@@ -45,7 +46,10 @@ fun main(args: Array<String>?) {
         for (order in orders) {
             setYearMap(yearMap, order.year, order.month, order.turnover)
             setDeviceMap(deviceMap, order.device, order.turnover)
+            setDeviceMonthMap(deviceMonthMap, order.device, order.month, order.turnover)
         }
+
+        println(yearMap[2017])
 
         printYearMap(yearMap)
         printDeviceMap(deviceMap)
@@ -53,6 +57,7 @@ fun main(args: Array<String>?) {
         printCPC(orders)
         printClickRate(orders)
         printROI(orders)
+        printDeviceMonthMap(deviceMonthMap)
 
     } catch (e: Exception) {
         println("Reading CSV Error!")
@@ -82,6 +87,10 @@ fun setOrder(orders: ArrayList<Order>, tokens: List<String>) {
     )
 }
 
+fun formatFloat(format: String, value: Number): String {
+    return format.format(value)
+}
+
 fun setYearMap(
     map: MutableMap<Int, MutableMap<String, Number>>,
     year: Int,
@@ -98,12 +107,28 @@ fun setYearMap(
     map[year] = yearMap
 }
 
+fun setDeviceMonthMap(
+    map: MutableMap<String, MutableMap<String, Number>>,
+    device: String,
+    month: String,
+    value: Number
+) {
+    var monthMap = mutableMapOf<String, Number>()
+    var turnover: Number = 0
+
+    if (map.contains(device)) monthMap = map[device]!!
+    if (monthMap.contains(month)) turnover = monthMap[month]!!
+
+    monthMap[month] = turnover.toFloat() + value.toFloat()
+    map[device] = monthMap
+}
+
 fun setDeviceMap(map: MutableMap<String, Number>, device: String, value: Number) {
     var turnover: Number = 0
 
     if (map.contains(device)) turnover = map[device]!!
 
-    map.put(device, turnover.toFloat() + value.toFloat())
+    map[device] = turnover.toFloat() + value.toFloat()
 }
 
 fun printYearMap(yearMap: MutableMap<Int, MutableMap<String, Number>>) {
@@ -119,6 +144,15 @@ fun printDeviceMap(deviceMap: MutableMap<String, Number>) {
     println("\nLe chiffre d’affaires par appareil :")
     for ((device, turnover) in deviceMap) {
         println("$device   =>  " + formatFloat("%.2f", turnover) + "€")
+    }
+}
+
+fun printDeviceMonthMap(deviceMonthMap: MutableMap<String, MutableMap<String, Number>>) {
+    println("\nLe ROI segmenté par appareil et par mois (uniquement sur 2017) :")
+    for ((device, monthMap) in deviceMonthMap) {
+        for ((month, turnover) in monthMap) {
+            println("[$device | $month]   =>  " + formatFloat("%.2f", turnover) + "€")
+        }
     }
 }
 
@@ -145,8 +179,4 @@ fun printROI(orders: ArrayList<Order>) {
     val totalCosts = orders.map { it.cost.toFloat() }.sum()
     val roi = formatFloat("%.2f", totalTurnover / totalCosts)
     println("\nLe ROI est de $roi%")
-}
-
-fun formatFloat(format: String, value: Number): String {
-    return format.format(value)
 }
